@@ -75,13 +75,7 @@ export const openSourceModels = z.enum([
 ]);
 
 export function tempLlama3HackGetRevision(model: AllModels): string {
-  if (model === "meta-llama/Meta-Llama-3-8B") {
-    return "refs/pr/35";
-  } else if (model === "meta-llama/Meta-Llama-3-70B") {
-    return "refs/pr/5";
-  } else {
     return "main";
-  }
 }
 
 export const hackModelsRemoveFirstToken = z.enum([
