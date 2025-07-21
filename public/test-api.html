@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        textarea,
+        select {
+            padding: 8px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            width: 200px;
+        }
+
+        .response {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: #f9f9f9;
+            min-height: 100px;
+        }
+
+        .method-select {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Token API 测试工具</h1>
+
+    <div class="container">
+        <div class="form-group">
+            <label for="method">请求方法:</label>
+            <div class="method-select">
+                <input type="radio" id="get" name="method" value="GET" checked>
+                <label for="get">GET</label>
+                <input type="radio" id="post" name="method" value="POST">
+                <label for="post">POST</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="model">模型:</label>
+            <select id="model">
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                <option value="cl100k_base">cl100k_base (编码器)</option>
+                <option value="p50k_base">p50k_base (编码器)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="text">文本内容:</label>
+            <textarea id="text" rows="5">这是一个测试文本，用于计算token数量。</textarea>
+        </div>
+
+        <div class="form-group">
+            <input type="checkbox" id="count_only">
+            <label for="count_only">仅返回计数</label>
+        </div>
+
+        <div class="form-group">
+            <button id="send-request">发送请求</button>
+        </div>
+
+        <h3>响应结果:</h3>
+        <pre class="response" id="response"></pre>
+    </div>
+
+    <script>
+        document.getElementById('send-request').addEventListener('click', async function () {
+            const method = document.querySelector('input[name="method"]:checked').value;
+            const modelSelect = document.getElementById('model');
+            const text = document.getElementById('text').value;
+            const countOnly = document.getElementById('count_only').checked;
+            const responseElement = document.getElementById('response');
+
+            responseElement.textContent = '请求中...';
+
+            const isEncoder = modelSelect.value === 'cl100k_base' || modelSelect.value === 'p50k_base';
+            const modelParam = isEncoder ? 'encoder' : 'model';
+
+            try {
+                let url = `/api/v1/tokens`;
+                let options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+
+                // 构建请求数据
+                const requestData = {
+                    [modelParam]: modelSelect.value,
+                    text: text,
+                    count_only: countOnly
+                };
+
+                // 根据请求方法处理参数
+                if (method === 'GET') {
+                    // 将参数添加到URL
+                    const params = new URLSearchParams();
+                    params.append(modelParam, requestData[modelParam]);
+                    params.append('text', requestData.text);
+                    params.append('count_only', requestData.count_only);
+                    url += '?' + params.toString();
+                } else {
+                    // 将参数添加到请求体
+                    options.body = JSON.stringify(requestData);
+                }
+
+                console.log(`发送${method}请求到 ${url}`, options);
+
+                const response = await fetch(url, options);
+                const data = await response.json();
+
+                responseElement.textContent = JSON.stringify(data, null, 2);
+                console.log('API响应:', data);
+            } catch (error) {
+                responseElement.textContent = `错误: ${error.message}`;
+                console.error('API请求错误:', error);
+            }
+        });
+    </script>
+</body>
+
+</html>
