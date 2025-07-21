@@ -51,10 +51,30 @@ type FullResponseType = z.infer<typeof fullResponseSchema>;
 type CountOnlyResponseType = z.infer<typeof countOnlyResponseSchema>;
 type ResponseType = FullResponseType; // 内部使用，始终返回完整结果
 
+// 辅助函数：设置CORS头
+function setCorsHeaders(res: NextApiResponse) {
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    );
+}
+
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
+    // 设置CORS头部
+    setCorsHeaders(res);
+
+    // 处理预检请求
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
     // 检查HTTP方法
     if (req.method !== 'GET' && req.method !== 'POST') {
         return res.status(405).json({ error: "方法不允许，仅支持GET和POST请求" });
@@ -63,13 +83,41 @@ export default async function handler(
     try {
         // 记录请求信息以便调试
         console.log("请求方法:", req.method);
-        console.log("请求头:", req.headers);
-        console.log("请求体:", req.body);
+        console.log("请求头:", JSON.stringify(req.headers, null, 2));
+        console.log("Content-Type:", req.headers["content-type"]);
+        console.log("请求体原始数据:", req.body);
         console.log("请求查询:", req.query);
 
-        // 统一处理查询参数和请求体数据
-        const data =
-            typeof req.body === "object" ? { ...req.body, ...req.query } : req.query;
+        // 处理不同的Content-Type
+        let requestData: any;
+        if (req.method === 'POST') {
+            const contentType = req.headers["content-type"];
+            if (contentType && contentType.includes('application/json')) {
+                // 请求体已经被Next.js解析为JSON
+                requestData = req.body;
+            } else if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
+                // 表单数据，已被Next.js解析
+                requestData = req.body;
+            } else if (typeof req.body === 'string') {
+                // 尝试解析JSON字符串
+                try {
+                    requestData = JSON.parse(req.body);
+                } catch (e) {
+                    console.error("解析请求体失败:", e);
+                    requestData = {};
+                }
+            } else {
+                requestData = req.body || {};
+            }
+        } else {
+            // GET请求使用查询参数
+            requestData = req.query;
+        }
+
+        console.log("处理后的请求数据:", requestData);
+
+        // 合并查询参数和请求体数据
+        const data = { ...requestData, ...req.query };
 
         console.log("合并后的数据:", data);
 
