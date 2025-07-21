@@ -69,13 +69,12 @@ export const oaiModels = z.enum([
 export const openSourceModels = z.enum([
   "deepseek-ai/DeepSeek-R1",
   "Qwen/Qwen2.5-72B",
-  "tiiuae/falcon-7b",
   "01-ai/Yi-6B",
   "openai/whisper-tiny",
 ]);
 
 export function tempLlama3HackGetRevision(model: AllModels): string {
-    return "main";
+  return "main";
 }
 
 export const hackModelsRemoveFirstToken = z.enum([
@@ -105,7 +104,6 @@ export const POPULAR: z.infer<typeof allOptions>[] = [
   "o200k_base",
   "gpt-4-1106-preview",
   "gpt-3.5-turbo",
-  "codellama/CodeLlama-7b-hf",
 ];
 
 export function isChatModel(
