@@ -70,8 +70,6 @@ export const openSourceModels = z.enum([
   // "meta-llama/Llama-2-7b-hf",
   "codellama/CodeLlama-7b-hf",
   "codellama/CodeLlama-70b-hf",
-  "meta-llama/Meta-Llama-3-8B",
-  "meta-llama/Meta-Llama-3-70B",
   "microsoft/phi-2",
   "google/gemma-7b",
   "deepseek-ai/DeepSeek-R1",
