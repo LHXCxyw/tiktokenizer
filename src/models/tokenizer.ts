@@ -1,8 +1,8 @@
 // 在导入 @xenova/transformers 之前设置环境变量
 if (typeof window === "undefined") {
-  // 服务器环境：提前设置缓存相关环境变量
-  process.env.TRANSFORMERS_CACHE = "/tmp/.transformers-cache";
-  process.env.HF_HOME = "/tmp/.huggingface";
+  // 服务器环境：禁用缓存相关功能以避免文件系统写入错误
+  process.env.TRANSFORMERS_OFFLINE = "1";
+  process.env.HF_HUB_DISABLE_TELEMETRY = "1";
 }
 
 import { hackModelsRemoveFirstToken } from "./index";
@@ -110,15 +110,23 @@ export class OpenSourceTokenizer implements Tokenizer {
       console.log("服务器环境且未提供主机信息，将使用默认远程主机");
     }
     env.remotePathTemplate = "/hf/{model}";
-    // 在服务器环境中补充运行时缓存配置
+    // 在服务器环境中配置缓存策略
     if (typeof window === "undefined") {
-      console.log("服务器环境：应用缓存配置");
-      // 确保使用 /tmp 目录作为缓存（环境变量已在文件顶部设置）
-      console.log("TRANSFORMERS_CACHE:", process.env.TRANSFORMERS_CACHE);
+      console.log("服务器环境：配置无缓存模式");
+      // 完全禁用缓存以避免文件系统写入错误
+      env.useBrowserCache = false;
+      env.allowLocalModels = false;
     }
     const t = await PreTrainedTokenizer.from_pretrained(model, {
-      progress_callback: (progress: any) =>
-        console.log(`loading "${model}"`, progress),
+      // 最小化日志输出：只在关键状态时记录
+      progress_callback: (progress: any) => {
+        if (progress.status === 'initiate') {
+          console.log(`开始加载 "${model}" ${progress.file}`);
+        } else if (progress.status === 'done') {
+          console.log(`完成加载 "${model}" ${progress.file}`);
+        }
+        // 忽略所有 'download' 和 'progress' 状态以减少日志
+      },
     });
     console.log("loaded tokenizer", model, t.name);
     return t;
