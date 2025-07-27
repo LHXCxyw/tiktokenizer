@@ -15,8 +15,12 @@ export const config = {
     },
 };
 
-async function calculateTokens(model: AllOptions, text: string): Promise<ResponseType> {
-    const tokenizer = await createTokenizer(model);
+async function calculateTokens(
+    model: AllOptions,
+    text: string,
+    hostInfo?: string
+): Promise<ResponseType> {
+    const tokenizer = await createTokenizer(model, hostInfo ? { hostInfo } : undefined);
     const result = tokenizer.tokenize(text);
 
     return {
@@ -184,6 +188,17 @@ export default async function handler(
             requestData.count_only = requestData.count_only.toLowerCase() === "true";
         }
 
+        // 提取主机信息用于服务器端环境配置
+        const hostInfo = req.headers.host ?
+            `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}` :
+            undefined;
+
+        if (hostInfo) {
+            console.log(`提取到主机信息: ${hostInfo}`);
+        } else {
+            console.log("无法提取主机信息，将使用默认配置");
+        }
+
         // 使用parse而非safeParse，与encode.ts保持一致
         try {
             // 尝试解析请求数据
@@ -193,10 +208,10 @@ export default async function handler(
 
             if ("encoder" in input) {
                 console.log(`使用编码器 ${input.encoder} 计算token...`);
-                result = await calculateTokens(input.encoder, input.text);
+                result = await calculateTokens(input.encoder, input.text, hostInfo);
             } else {
                 console.log(`使用模型 ${input.model} 计算token...`);
-                result = await calculateTokens(input.model, input.text);
+                result = await calculateTokens(input.model, input.text, hostInfo);
             }
 
             if (!result) {
