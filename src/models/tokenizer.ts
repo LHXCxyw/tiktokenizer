@@ -103,8 +103,12 @@ export class OpenSourceTokenizer implements Tokenizer {
       console.log("服务器环境且未提供主机信息，将使用默认远程主机");
     }
     env.remotePathTemplate = "/hf/{model}";
-    // Set to false for testing!
-    // env.useBrowserCache = false;
+    // 在服务器环境中配置缓存策略
+    if (typeof window === "undefined") {
+      // 服务器环境：设置缓存目录到 /tmp（serverless 环境中唯一可写的目录）
+      console.log("配置服务器端缓存到 /tmp 目录");
+      process.env.TRANSFORMERS_CACHE = "/tmp/.transformers-cache";
+    }
     const t = await PreTrainedTokenizer.from_pretrained(model, {
       progress_callback: (progress: any) =>
         console.log(`loading "${model}"`, progress),
