@@ -16,6 +16,9 @@ import {
   type Segment,
 } from "~/utils/segments";
 
+// Lambda 内存缓存：缓存已加载的 tokenizer 对象
+const tokenizerCache = new Map<string, Tokenizer>();
+
 export interface TokenizerResult {
   name: string;
   // Array<{ text: string; tokens: { id: number; idx: number }[] }> ?
@@ -127,6 +130,8 @@ export class OpenSourceTokenizer implements Tokenizer {
         }
         // 忽略所有 'download' 和 'progress' 状态以减少日志
       },
+      // 禁用本地文件优先机制，强制从远程下载
+      local_files_only: false,
     });
     console.log("loaded tokenizer", model, t.name);
     return t;
@@ -152,23 +157,41 @@ export async function createTokenizer(
   options?: { hostInfo?: string }
 ): Promise<Tokenizer> {
   console.log("createTokenizer", name, options?.hostInfo ? `with hostInfo: ${options.hostInfo}` : "without hostInfo");
+
+  // 🚀 检查 Lambda 内存缓存：如果已存在，直接返回（毫秒级速度）
+  const cacheKey = `${name}_${options?.hostInfo || 'default'}`;
+  if (tokenizerCache.has(cacheKey)) {
+    console.log(`🚀 从缓存返回 tokenizer: ${name} (超快速度)`);
+    return tokenizerCache.get(cacheKey)!;
+  }
+
   const oaiEncoding = oaiEncodings.safeParse(name);
   if (oaiEncoding.success) {
     console.log("oaiEncoding", oaiEncoding.data);
-    return new TiktokenTokenizer(oaiEncoding.data);
+    const tokenizer = new TiktokenTokenizer(oaiEncoding.data);
+    tokenizerCache.set(cacheKey, tokenizer);
+    return tokenizer;
   }
   const oaiModel = oaiModels.safeParse(name);
   if (oaiModel.success) {
     console.log("oaiModel", oaiModel.data);
-    return new TiktokenTokenizer(oaiModel.data);
+    const tokenizer = new TiktokenTokenizer(oaiModel.data);
+    tokenizerCache.set(cacheKey, tokenizer);
+    return tokenizer;
   }
 
   const ossModel = openSourceModels.safeParse(name);
   if (ossModel.success) {
     console.log("loading tokenizer", ossModel.data);
-    const tokenizer = await OpenSourceTokenizer.load(ossModel.data, options?.hostInfo);
+    const huggingfaceTokenizer = await OpenSourceTokenizer.load(ossModel.data, options?.hostInfo);
     console.log("loaded tokenizer", name);
-    return new OpenSourceTokenizer(tokenizer, name);
+    const tokenizer = new OpenSourceTokenizer(huggingfaceTokenizer, name);
+
+    // 💾 缓存到 Lambda 内存，后续调用将达到前端一样的超快速度
+    tokenizerCache.set(cacheKey, tokenizer);
+    console.log(`💾 已缓存 tokenizer: ${name} - 后续调用将超快`);
+
+    return tokenizer;
   }
   throw new Error("Invalid model or encoding");
 }
