@@ -87,23 +87,22 @@ export class OpenSourceTokenizer implements Tokenizer {
   name: string;
 
   static async load(
-    model: z.infer<typeof openSourceModels>
+    model: z.infer<typeof openSourceModels>,
+    hostInfo?: string
   ): Promise<PreTrainedTokenizer> {
-    // use current host as proxy if we're running on the client
-    if (typeof window !== "undefined") {
+    // 使用外部传入的主机信息，如果提供的话
+    if (hostInfo) {
+      console.log(`使用外部提供的主机信息: ${hostInfo}`);
+      env.remoteHost = hostInfo;
+    } else if (typeof window !== "undefined") {
+      // 浏览器环境：使用当前页面的origin
+      console.log("浏览器环境，使用当前页面origin");
       env.remoteHost = window.location.origin;
     } else {
-      // 新增：服务器端环境配置
-      const port = process.env.PORT || '3000';
-      const isDev = process.env.NODE_ENV === 'development';
-      env.remoteHost = isDev
-        ? `http://localhost:${port}`
-        : `http://localhost:${port}`; // 生产环境可根据需要调整
+      // 服务器环境但未提供主机信息：使用默认行为
+      console.log("服务器环境且未提供主机信息，将使用默认远程主机");
     }
-
     env.remotePathTemplate = "/hf/{model}";
-    console.log(`配置 Transformers 环境 - Host: ${env.remoteHost}, Template: ${env.remotePathTemplate}`);
-
     // Set to false for testing!
     // env.useBrowserCache = false;
     const t = await PreTrainedTokenizer.from_pretrained(model, {
@@ -129,8 +128,11 @@ export class OpenSourceTokenizer implements Tokenizer {
   }
 }
 
-export async function createTokenizer(name: string): Promise<Tokenizer> {
-  console.log("createTokenizer", name);
+export async function createTokenizer(
+  name: string,
+  options?: { hostInfo?: string }
+): Promise<Tokenizer> {
+  console.log("createTokenizer", name, options?.hostInfo ? `with hostInfo: ${options.hostInfo}` : "without hostInfo");
   const oaiEncoding = oaiEncodings.safeParse(name);
   if (oaiEncoding.success) {
     console.log("oaiEncoding", oaiEncoding.data);
@@ -145,7 +147,7 @@ export async function createTokenizer(name: string): Promise<Tokenizer> {
   const ossModel = openSourceModels.safeParse(name);
   if (ossModel.success) {
     console.log("loading tokenizer", ossModel.data);
-    const tokenizer = await OpenSourceTokenizer.load(ossModel.data);
+    const tokenizer = await OpenSourceTokenizer.load(ossModel.data, options?.hostInfo);
     console.log("loaded tokenizer", name);
     return new OpenSourceTokenizer(tokenizer, name);
   }
