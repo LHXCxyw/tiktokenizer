@@ -42,17 +42,17 @@ export class TiktokenTokenizer implements Tokenizer {
       const enc =
         model === "gpt-3.5-turbo" || model === "gpt-4" || model === "gpt-4-32k"
           ? get_encoding("cl100k_base", {
-              "<|im_start|>": 100264,
-              "<|im_end|>": 100265,
-              "<|im_sep|>": 100266,
-            })
+            "<|im_start|>": 100264,
+            "<|im_end|>": 100265,
+            "<|im_sep|>": 100266,
+          })
           : model === "gpt-4o"
-          ? get_encoding("o200k_base", {
+            ? get_encoding("o200k_base", {
               "<|im_start|>": 200264,
               "<|im_end|>": 200265,
               "<|im_sep|>": 200266,
             })
-          : // @ts-expect-error r50k broken?
+            : // @ts-expect-error r50k broken?
             encoding_for_model(model);
       this.name = enc.name ?? model;
       this.enc = enc;
@@ -92,8 +92,18 @@ export class OpenSourceTokenizer implements Tokenizer {
     // use current host as proxy if we're running on the client
     if (typeof window !== "undefined") {
       env.remoteHost = window.location.origin;
+    } else {
+      // 新增：服务器端环境配置
+      const port = process.env.PORT || '3000';
+      const isDev = process.env.NODE_ENV === 'development';
+      env.remoteHost = isDev
+        ? `http://localhost:${port}`
+        : `http://localhost:${port}`; // 生产环境可根据需要调整
     }
+
     env.remotePathTemplate = "/hf/{model}";
+    console.log(`配置 Transformers 环境 - Host: ${env.remoteHost}, Template: ${env.remotePathTemplate}`);
+
     // Set to false for testing!
     // env.useBrowserCache = false;
     const t = await PreTrainedTokenizer.from_pretrained(model, {
