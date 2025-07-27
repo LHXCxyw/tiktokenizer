@@ -1,3 +1,10 @@
+// 在导入 @xenova/transformers 之前设置环境变量
+if (typeof window === "undefined") {
+  // 服务器环境：提前设置缓存相关环境变量
+  process.env.TRANSFORMERS_CACHE = "/tmp/.transformers-cache";
+  process.env.HF_HOME = "/tmp/.huggingface";
+}
+
 import { hackModelsRemoveFirstToken } from "./index";
 import { get_encoding, encoding_for_model, type Tiktoken } from "tiktoken";
 import { oaiEncodings, oaiModels, openSourceModels } from ".";
@@ -103,11 +110,11 @@ export class OpenSourceTokenizer implements Tokenizer {
       console.log("服务器环境且未提供主机信息，将使用默认远程主机");
     }
     env.remotePathTemplate = "/hf/{model}";
-    // 在服务器环境中配置缓存策略
+    // 在服务器环境中补充运行时缓存配置
     if (typeof window === "undefined") {
-      // 服务器环境：设置缓存目录到 /tmp（serverless 环境中唯一可写的目录）
-      console.log("配置服务器端缓存到 /tmp 目录");
-      process.env.TRANSFORMERS_CACHE = "/tmp/.transformers-cache";
+      console.log("服务器环境：应用缓存配置");
+      // 确保使用 /tmp 目录作为缓存（环境变量已在文件顶部设置）
+      console.log("TRANSFORMERS_CACHE:", process.env.TRANSFORMERS_CACHE);
     }
     const t = await PreTrainedTokenizer.from_pretrained(model, {
       progress_callback: (progress: any) =>
